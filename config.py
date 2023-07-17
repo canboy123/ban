@@ -1,5 +1,5 @@
 config = {
-    "epochs": 500,
+    "epochs": 200,
     "batch_size": 128,
     "input_nodes": 28 * 28 * 1,
     "image_size": 28,
