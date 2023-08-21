@@ -13,7 +13,7 @@ import config as c
 from lib.my_logging import *
 from lib.model import *
 from lib.trainer import Trainer
-from lib.extFunc import saveArrToFile, loadArrFromFile, save_dictionary
+from lib.extFunc import saveArrToFile, loadArrFromFile, save_dictionary, load_dictionary
 
 CUDA_DEVICE_INDEX = '0'
 os.environ['CUDA_VISIBLE_DEVICES'] = CUDA_DEVICE_INDEX
@@ -32,6 +32,10 @@ bool_save_model = True
 
 bool_load_model = True
 bool_load_model = False
+
+# If load_model_for_retraining is True, then we will retrain all models
+load_model_for_retraining = True
+# load_model_for_retraining = False
 
 inputs = tf.keras.Input(shape=config["input_shape"])
 # dd/mm/YY
@@ -65,6 +69,11 @@ def initialize_wandb(config, model_index):
         # track hyperparameters and run metadata
         config=config
     )
+
+if bool_load_model:
+    filename = f"{CONST_SAVED_MODEL_OUTDIR}/configuration.json"
+    config = load_dictionary(filename)
+    # config["learning_rate"] = 0.002
 ########################################
 #               LOGGING                #
 ########################################
@@ -74,6 +83,24 @@ logger = createLogger(logname)
 ########################################
 #           LOAD FUNCTION              #
 ########################################
+
+def load_pattern(filename):
+    pattern = loadArrFromFile(filename)
+    return pattern
+
+def load_pattern_model(model_index):
+    models = []
+    if bool_load_model:
+        # for i in range(config["num_classes"]):
+        #     if train_one_model is True and i != model_index:
+        #         continue
+        dir = f"{CONST_SAVED_PATTERN_MODEL_DIR}_{model_index}"
+        model = load_saved_model(dir)
+        # models.append(model)
+
+    return model
+    # return models
+
 def load_models(dir):
     model = load_saved_model(dir)
     model.summary()
@@ -133,29 +160,34 @@ def get_each_label_dataset(ds_test):
     return test_label_datasets
 
 def main():
-    patterns = []
-    if config["use_same_pattern"]:
-        pattern = generateClassPattern(config["output_nodes"])
-        for i in range(config["num_classes"]):
-            patterns.append(pattern)
+    if bool_load_model:
+        # --- Load the pattern and the pattern model ---
+        filename = f"{CONST_SAVED_MODEL_OUTDIR}/pattern.txt"
+        patterns = load_pattern(filename)
     else:
-        for i in range(config["num_classes"]):
-            patterns.append(generateClassPattern(config["output_nodes"], i))
+        patterns = []
+        if config["use_same_pattern"]:
+            pattern = generateClassPattern(config["output_nodes"])
+            for i in range(config["num_classes"]):
+                patterns.append(pattern)
+        else:
+            for i in range(config["num_classes"]):
+                patterns.append(generateClassPattern(config["output_nodes"], i))
 
-    np_patterns = []
-    for label_patterns in patterns:
-        tmpPatterns = []
-        for pattern in label_patterns:
-            tmp = []
-            for i in pattern.numpy():
-                tmp.append(i)
-            tmpPatterns.append(tmp)
-        np_patterns.append(tmpPatterns)
+        np_patterns = []
+        for label_patterns in patterns:
+            tmpPatterns = []
+            for pattern in label_patterns:
+                tmp = []
+                for i in pattern.numpy():
+                    tmp.append(i)
+                tmpPatterns.append(tmp)
+            np_patterns.append(tmpPatterns)
 
-    # --- Save the pattern into the directory ---
-    filename = f"{CONST_SAVED_MODEL_OUTDIR}/pattern.txt"
-    saveArrToFile(filename, np_patterns)
-    logger.info(f'Pattern: {np_patterns}, {np.shape(np_patterns)}')
+        # --- Save the pattern into the directory ---
+        filename = f"{CONST_SAVED_MODEL_OUTDIR}/pattern.txt"
+        saveArrToFile(filename, np_patterns)
+        logger.info(f'Pattern: {np_patterns}, {np.shape(np_patterns)}')
 
     # --- Save configuration ---
     filename = f"{CONST_SAVED_MODEL_OUTDIR}/configuration.json"
@@ -193,22 +225,29 @@ def main():
     logits_per_class = []
     for index, ds in enumerate(train_label_datasets):
         if bool_load_model:
-            if index < start_index:
+            # This is used to retrain only specific model index
+            # If load_model_for_retraining is True, then we will retrain all models
+            if index < start_index and load_model_for_retraining is False:
                 continue
+            dir = f"{CONST_SAVED_MODEL_DIR}_{index}"
+            model = load_saved_model(dir)
+            pattern_model = load_pattern_model(index)
         else:
-            model = createModel(index, config)
-            optimizer = getOptimizer()
-            pattern_optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
+            model = createModel(config)
             pattern_model = createPatternModel(config)
-            pattern = patterns[index]
 
-            # Print one of the model
-            if index == 0:
-                model.summary(print_fn=getModelSummaryFromKeras)
-                logger.info(msg=f"1 class model summary:\n {modelSummaryStr}")
+        pattern = patterns[index]
+        optimizer = getOptimizer()
+        pattern_optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
 
-                pattern_model.summary(print_fn=getPatternModelSummaryFromKeras)
-                logger.info(msg=f"pattern model summary:\n {patternModelSummaryStr}")
+        # Print one of the model
+        if index == 0:
+            model.summary(print_fn=getModelSummaryFromKeras)
+            logger.info(msg=f"1 class model summary:\n {modelSummaryStr}")
+
+            pattern_model.summary(print_fn=getPatternModelSummaryFromKeras)
+            logger.info(msg=f"pattern model summary:\n {patternModelSummaryStr}")
+
         initialize_wandb(config, index)
         print(f"Train on class: {index}")
 
@@ -222,8 +261,6 @@ def main():
             # --- Save pattern model ---
             save_model(pattern_model, index, CONST_SAVED_PATTERN_MODEL_DIR)
 
-        dir = f"{CONST_SAVED_MODEL_DIR}_{index}"
-        tmp_model = load_models(dir)
         wandb.finish()
 
 

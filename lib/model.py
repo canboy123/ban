@@ -33,17 +33,12 @@ class BanHead(tf.keras.Model):
         super(BanHead, self).__init__()
         self._pattern = pattern
         self._use_relu = use_relu
-        self._loss = config["loss"]
         self._config = config
 
-    def call(self, inputs, ori_inputs=None, output_layer_weights=None):
+    def call(self, inputs):
         if inputs.dtype.base_dtype != self._compute_dtype_object.base_dtype:
             inputs = tf.cast(inputs, dtype=self._compute_dtype_object)
 
-        ori_inputs = Flatten()(ori_inputs)
-
-        # x = inputs - self._pattern
-        # x = tf.reduce_sum(x, 1, keepdims=True)
         if self._use_relu:
             # --- Add the relu here
             inputs = tf.keras.layers.ReLU()(inputs)
@@ -52,7 +47,7 @@ class BanHead(tf.keras.Model):
             dist = self._pattern
 
         # KL-divergence loss
-        if self._loss == "kl":
+        if self._config["loss"] == "kl":
             kl = tf.keras.losses.KLDivergence(reduction=tf.keras.losses.Reduction.NONE)
             pattern_probs = tf.nn.softmax(dist, axis=-1)
             logits_probs = tf.nn.softmax(inputs, axis=-1)
@@ -60,33 +55,14 @@ class BanHead(tf.keras.Model):
             # x = kl(dist, inputs)
             x = tf.expand_dims(x, axis=-1)
         # MSE loss
-        elif self._loss == "mse":
-            x = ((dist - inputs) ** 2)
-            x = tf.reduce_mean(x, 1, keepdims=True)
-
-        return x
-
-class BanInputLayer(tf.keras.Model):
-    def __init__(self, input_nodes, **kwargs):
-        super(BanInputLayer, self).__init__(**kwargs)
-        self._input_nodes = input_nodes
-
-    def build(self, input_shape):
-        # self.variable = tf.Variable(
-        #     initial_value=tf.ones(shape=(self._input_nodes,)),
-        #     trainable=True
-        # )
-        self.variable = tf.Variable(
-            initial_value=tf.ones(shape=(input_shape[-1],)),
-            trainable=True
-        )
-        super(BanInputLayer, self).build(input_shape)
-
-    def call(self, inputs):
-        if inputs.dtype.base_dtype != self._compute_dtype_object.base_dtype:
-            inputs = tf.cast(inputs, dtype=self._compute_dtype_object)
-
-        x = inputs * self.variable
+        elif self._config["loss"] == "mse":
+            if self._config["num_of_pattern_per_label"] == 1:
+                x = (inputs - dist) ** 2
+                x = tf.reduce_mean(x, 1, keepdims=True)
+            else:
+                x = (inputs - dist) ** 2
+                x = tf.reduce_mean(x, 0)
+                x = tf.reduce_mean(x, 1, keepdims=True)
 
         return x
 
@@ -124,21 +100,13 @@ def createPatternModel(config):
     model = Model(inputs=inputs, outputs=outputs)
     return model
 
-def createNormalModel(model_index, config):
+def createNormalModel(config):
     input_shape = config["input_shape"]
     use_bias = config["use_bias"]
     activation = config["activation"]
     output_nodes = config["output_nodes"]
 
     inputs = Input(shape=input_shape)
-    # x = Conv2D(8, 3, 2)(inputs)
-    # x = BatchNormalization()(x)
-    # x = Conv2D(16, 3, 2)(x)
-    # x = BatchNormalization()(x)
-    # x = Conv2D(32, 3, 2)(x)
-    # x = BatchNormalization()(x)
-    # x = Flatten()(x)
-    # x = BanInputLayer(input_nodes)(x)
     x = Flatten()(inputs)
     out = Dense(output_nodes, use_bias=use_bias)(x)
 
@@ -151,8 +119,7 @@ def createNormalModel(model_index, config):
 
     return model
 
-def createModel(model_index, config):
-    model = createNormalModel(model_index, config)
+def createModel(config):
+    model = createNormalModel(config)
 
     return model
-

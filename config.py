@@ -1,16 +1,15 @@
 config = {
-    "epochs": 200,
-    "batch_size": 128,
+    "epochs": 20,
+    "batch_size": 32,
     "input_nodes": 28 * 28 * 1,
-    "image_size": 28,
-    "output_nodes": 128,
+    "output_nodes": 512,
     "num_classes": 10,
     "input_shape": (28, 28, 1),
     "flatten_shape": 28 * 28 * 1,
-    "min_node": -1,
+    "min_node": 0,
     "max_node": 1,
 
-    "learning_rate": 0.001,
+    "learning_rate": 0.01,
     "num_training_data": 50000,
 
     "dataset_name": "mnist",
@@ -25,7 +24,7 @@ config = {
     ##############################
     # --- Either to use pattern layer or not ---
     "use_pattern": True,
-    "use_pattern": False,
+    # "use_pattern": False,
 
     #--- Either to use a fixed pattern for each class or use different pattern for different classes ---
     "num_of_pattern_per_label": 1,
@@ -34,7 +33,7 @@ config = {
 
     # --- Either to use a trainable (dynamic) pattern for each class or not ---
     "use_flexible_pattern": True,
-    "use_flexible_pattern": False,
+    # "use_flexible_pattern": False,
 
 
     # --- Type of loss function ---
@@ -45,4 +44,8 @@ config = {
     "activation": False,
     # "activation": "sigmoid",
     # "activation": "tanh",
+
+    # # --- Either to use average of embedded vectors from mini-batch images as the pattern for each class or not ---
+    # "use_self_pattern": True,
+    # "use_self_pattern": False,
 }

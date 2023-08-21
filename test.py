@@ -27,12 +27,12 @@ except:
 #            INITIALIZATION            #
 ########################################
 use_relu = True
-# use_relu = False
+use_relu = False
 
 bool_load_model = True
 # bool_load_model = False
 
-CONST_SAVED_MODEL_OUTDIR = "mnist_tf_e2_202307171600_0"
+CONST_SAVED_MODEL_OUTDIR = "mnist_tf_e20_202308211800_0"
 CONST_LOAD_MODEL_DIR = "saved_model_label"
 CONST_LOAD_PATTERN_MODEL_DIR = "saved_pattern_model_label"
 CONST_SAVED_MODEL_DIR = f"./saved_models/{CONST_SAVED_MODEL_OUTDIR}"
@@ -93,14 +93,7 @@ def load_ban_model(patterns, pattern_models):
             model.summary()
             input = model.inputs
             inputs.append(input)
-            # --- If we use double nodes mode, we do not include the tanh activation function during the test ---
-            if config.get("use_double_nodes") is not None and config["use_double_nodes"]:
-                # out = model.layers[-2].output
-                out = model.layers[-1].output
-            else:
-                out = model.layers[-1].output
-                # output_layer_weights = model.layers[-1].get_weights()[0]
-                output_layer_weights = None
+            out = model.layers[-1].output
 
             pattern = patterns[i]
             # pattern = tf.cast(tf.convert_to_tensor([pattern]), tf.float32)
@@ -109,11 +102,10 @@ def load_ban_model(patterns, pattern_models):
             for p in pattern:
                 tmp = tf.cast(tf.convert_to_tensor([p]), tf.float32)
                 k_patterns.append(tmp)
-            ori_inputs = tf.cast(tf.squeeze(input, 0), "float32")
             pattern_model = pattern_models[i]
             out_pattern = pattern_model(k_patterns)
             print(i, "out_pattern", out_pattern)
-            output = BanHead(out_pattern, use_relu, config)(out, ori_inputs, output_layer_weights)
+            output = BanHead(out_pattern, use_relu, config)(out)
 
             outputs.append(output)
 
@@ -183,7 +175,6 @@ def main():
         for x, y in ds:
             inputs = [x for i in range(num_classes)]
             logits = model(inputs)
-            # print(logits)
             equalvalent_check = tf.cast(tf.equal(y, tf.argmin(logits, 1)), 'float32')
             # equalvalent_check = tf.cast(tf.equal(y, tf.argmax(logits, 1)), 'float32')
             accuracy = tf.reduce_mean(equalvalent_check)
