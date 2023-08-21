@@ -44,8 +44,4 @@ config = {
     "activation": False,
     # "activation": "sigmoid",
     # "activation": "tanh",
-
-    # # --- Either to use average of embedded vectors from mini-batch images as the pattern for each class or not ---
-    # "use_self_pattern": True,
-    # "use_self_pattern": False,
 }
