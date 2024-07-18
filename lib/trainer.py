@@ -4,8 +4,6 @@ import time
 from tensorflow.keras.layers import Input, Conv2D, BatchNormalization, MaxPooling2D, Dropout, Flatten, Dense, \
 AveragePooling2D, Add, ReLU, PReLU, LeakyReLU, DepthwiseConv2D, ELU, GlobalAveragePooling2D, Concatenate
 
-from .utils import optimize_linear, compute_gradient, clip_eta, random_lp_vector
-
 CONST_REGULARIZER = tf.keras.regularizers.l2(1e-4)
 CONST_AVG_POOLING_POOL_SIZE = 2
 
