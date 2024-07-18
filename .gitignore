@@ -1,0 +1,19 @@
+# Custom
+.lh/
+*.ipynb
+_*/
+*.pfx
+*.pyc
+wix*/
+*.exe
+*.excalidraw
+.idea/
+saved_models/
+wandb/
+~/
+lib/_*
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[ocd]
+*$py.class
